@@ -36,7 +36,10 @@ The table is from twistedmage's relay_slime.ash and matches the hits seen on 202
 
 ## What it does
 
-- Wears the gear with the most slime resistance, then HP (`set autoslime_maximize = ...` to change it).
+- Wears the gear with the most slime resistance, then +ML up to +200 (`set autoslime_maxML = 200`): each kill counts
+  its monster level against the tube's total and gives more stats, and the slimes still die in a hit or two. It
+  stops if the slimes could hit for more than about a sixth of your HP a round. Max HP hardly matters, since the
+  slime hits are a share of it. (`set autoslime_maximize = ...` replaces the whole maximizer string.)
 - Keeps Grimace and Bilious up (+1 slime resistance, +25 ML, 20 turns each) with one slimy sweetbreads and one slimy
   fermented bile bladder when they run out, if you have 15+ adventures left (`set autoslime_buffMinAdventures = 15`).
   They're mediocre food (2-3 adventures), so it never eats them to fill up: when you're out of adventures it says

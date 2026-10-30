@@ -271,9 +271,13 @@ item sl_rustyToConvert()
 	return $item[none];
 }
 
+// Slime resistance first; then +ML up to autoslime_maxML (default 200): each kill counts its monster level against
+// the tube's 400,000 and gives more stats, and the slimes still die in a hit or two. Max HP hardly matters: the
+// slime hits are a share of it. Each 100 ML takes a turn off Coated in Slime, so a few more chamois, but every kill
+// puts one back.
 void sl_wearGear(item rusty)
 {
-	string spec = sl_setting("maximize", "100 slime resistance, hp, 0.3 mainstat");
+	string spec = sl_setting("maximize", "100 slime resistance, 5 ml " + sl_setting("maxML", "200") + " max, 0.3 mainstat, 0.1 hp");
 	if(rusty != $item[none])
 	{
 		if(item_amount(rusty) == 0 && closet_amount(rusty) > 0)
@@ -312,7 +316,8 @@ void sl_status()
 		sl_info("Coated in Slime: " + coated + " turns left. Your next fight anywhere starts with a hit of about " + next
 			+ " against your " + my_maxhp() + " max HP" + (sl_tooMuch(next) ? ": too much, so autoslime wipes it off with a chamois first." : "."));
 	}
-	sl_info("Slime resistance worn now: " + numeric_modifier("Slime Resistance").to_int() + " (" + elemental_resistance($element[slime]).to_int() + "% off each hit).");
+	sl_info("Slime resistance worn now: " + numeric_modifier("Slime Resistance").to_int() + " (" + elemental_resistance($element[slime]).to_int()
+		+ "% off each hit). Monster level: +" + numeric_modifier("Monster Level").to_int() + " (autoslime aims for up to +" + sl_setting("maxML", "200") + ").");
 	string[int] gear;
 	foreach it in $items[chamoisole, crown-shaped beanie, poodle skirt, hopping socks, letterman's jacket,
 		slime-covered compass, slime-covered greaves, slime-covered helmet, slime-covered lantern, slime-covered necklace]
@@ -427,6 +432,21 @@ boolean sl_turn()
 	if(have_effect($effect[Beaten Up]) > 0)
 	{
 		sl_warn("You're Beaten Up (" + have_effect($effect[Beaten Up]) + " turns) and KoLmafia couldn't remove it. Remove it, or spend those turns without fighting, then run autoslime again.");
+		return false;
+	}
+	//the slimes' own attacks, with all that ML: stop rather than trade blows with something that can hurt
+	int worst = 0;
+	foreach i, mon in get_monsters($location[The Slime Tube])
+	{
+		if(!mon.boss)
+		{
+			worst = max(worst, expected_damage(mon));
+		}
+	}
+	if(worst * 3 >= my_maxhp() * 0.5)
+	{
+		sl_warn("At +" + numeric_modifier("Monster Level").to_int() + " ML the slimes can hit for about " + worst + " a round against your "
+			+ my_maxhp() + " max HP. Stopping: lower autoslime_maxML.");
 		return false;
 	}
 	restore_hp(my_maxhp());
