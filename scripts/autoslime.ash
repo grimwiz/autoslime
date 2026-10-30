@@ -380,7 +380,7 @@ void sl_slimeBuffs()
 	}
 }
 
-// out of adventures: say what room is left rather than calling it a day
+// out of adventures even after "autosea diet": say what room is left
 void sl_outOfAdventures()
 {
 	int full = fullness_limit() - my_fullness();
@@ -389,7 +389,7 @@ void sl_outOfAdventures()
 	if(full + drunk + spleen > 0)
 	{
 		sl_info("Out of adventures, with " + full + " fullness, " + drunk + " drunkenness and " + spleen
-			+ " spleen still free. Fill those with good food and drink (not the slimy ones), then run autoslime again.");
+			+ " spleen still free, but autosea diet found nothing worth eating or drinking for it.");
 	}
 	else
 	{
@@ -510,6 +510,10 @@ void sl_run(int maxTurns)
 	int stuck = 0;
 	while(maxTurns < 0 || my_turncount() - start < maxTurns)
 	{
+		if(my_adventures() == 0)
+		{
+			cli_execute("autosea diet");	//eat and drink rather than stop (autosea fills the organs for every auto script)
+		}
 		if(my_adventures() == 0)
 		{
 			sl_outOfAdventures();
