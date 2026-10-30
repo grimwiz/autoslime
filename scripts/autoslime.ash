@@ -169,6 +169,27 @@ boolean sl_tooMuch(int hit)
 	return hit >= my_maxhp() * sl_setting("hitShare", "0.8").to_float();
 }
 
+// Does the bucket refill as slimes die? Each wipe compares the count with the last wipe's and with how many
+// slimes the clan killed in between (same instance only), and keeps a running total in autoslime_bucketEvidence
+// ("chamois back,slimes killed").
+void sl_bucketEvidence(int count)
+{
+	int kills = sl_readLog().kills;
+	string[int] last = get_property("autoslime_bucketAt").split_string(",");
+	if(count(last) == 2 && last[0] != "" && kills >= last[1].to_int())
+	{
+		int back = count - last[0].to_int() + 1;	//+1: the chamois this wipe took
+		int killed = kills - last[1].to_int();
+		string[int] total = get_property("autoslime_bucketEvidence").split_string(",");
+		int totalBack = back + (count(total) == 2 ? total[0].to_int() : 0);
+		int totalKilled = killed + (count(total) == 2 ? total[1].to_int() : 0);
+		set_property("autoslime_bucketEvidence", totalBack + "," + totalKilled);
+		sl_info("Since your last wipe the clan killed " + killed + " slimes and " + back + " chamois went back in the bucket. So far: "
+			+ totalBack + " back for " + totalKilled + " kills.");
+	}
+	set_property("autoslime_bucketAt", count + "," + kills);
+}
+
 // The Bucket by the tube: a chamois wipes the debuff off (KoLmafia can't shrug it), free. It's shared by the clan,
 // so autoslime leaves the last autoslime_bucketReserve (default 200) for others; the count left is shown after each
 // wipe and remembered for the day in _autoslime_bucketLeft. On 2026-10-30 it went 1,717 -> 1,721 across 5 kills and 1 wipe, so
@@ -201,6 +222,10 @@ boolean sl_chamois()
 	}
 	sl_info("Wiped off the slime with a chamois" + (counted ? " (" + left.group(1) + " left in the bucket)" : "")
 		+ (my_turncount() > turnsBefore ? "; it took a turn." : "."));
+	if(counted)
+	{
+		sl_bucketEvidence(left.group(1).to_int());
+	}
 	return true;
 }
 
@@ -461,9 +486,11 @@ void main(string... args)
 		sl_overrideProperty("choiceAdventure326", "0");	//Mother Slime: stop, never fight her
 		sl_overrideProperty("choiceAdventure337", "1");	//Engulfed!: tickle the uvula, never squeeze
 		sl_run(turns);
-		if(have_effect($effect[Coated in Slime]) > 0 && sl_setting("wipeAtEnd", "true").to_boolean())
+		//it hits in every fight, anywhere, and grows as it runs down: wipe it if you've turns left to fight with today.
+		//With none left it stays for the next autoslime, which carries on the cycle and wipes only when it must.
+		if(have_effect($effect[Coated in Slime]) > 0 && my_adventures() > 0 && sl_setting("wipeAtEnd", "true").to_boolean())
 		{
-			sl_chamois();	//it hits in every fight, anywhere, and grows as it runs down
+			sl_chamois();
 		}
 	}
 	finally
