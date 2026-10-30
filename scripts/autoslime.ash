@@ -357,8 +357,17 @@ boolean sl_turn()
 		}
 		next = sl_nextHit();
 	}
+	if(have_effect($effect[Beaten Up]) > 0)
+	{
+		cli_execute("uneffect Beaten Up");
+	}
+	if(have_effect($effect[Beaten Up]) > 0)
+	{
+		sl_warn("You're Beaten Up (" + have_effect($effect[Beaten Up]) + " turns) and KoLmafia couldn't remove it. Remove it, or spend those turns without fighting, then run autoslime again.");
+		return false;
+	}
 	restore_hp(my_maxhp());
-	if(my_hp() <= next + 50 || have_effect($effect[Beaten Up]) > 0)
+	if(my_hp() <= next + 50)
 	{
 		sl_warn("Couldn't heal enough for the next slime hit (HP " + my_hp() + ", hit about " + next + ").");
 		return false;
