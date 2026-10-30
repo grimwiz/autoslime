@@ -466,15 +466,45 @@ boolean sl_turn()
 	return true;
 }
 
+// Out of adventures: the tube's own food and drink first (slimy sweetbreads and bile bladders: 2-3 adventures each,
+// and +1 slime resistance), then say what room is left rather than calling it a day. Never overdrinks.
+boolean sl_refuel()
+{
+	while(my_adventures() == 0 && fullness_limit() > my_fullness() && item_amount($item[slimy sweetbreads]) > 0)
+	{
+		int before = my_fullness();
+		eat(1, $item[slimy sweetbreads]);
+		if(my_fullness() == before)
+		{
+			break;
+		}
+	}
+	while(my_adventures() == 0 && inebriety_limit() > my_inebriety() && item_amount($item[slimy fermented bile bladder]) > 0)
+	{
+		int before = my_inebriety();
+		drink(1, $item[slimy fermented bile bladder]);
+		if(my_inebriety() == before)
+		{
+			break;
+		}
+	}
+	if(my_adventures() > 0)
+	{
+		return true;
+	}
+	sl_info("Out of adventures, with " + (fullness_limit() - my_fullness()) + " fullness, " + (inebriety_limit() - my_inebriety())
+		+ " drunkenness and " + (spleen_limit() - my_spleen_use()) + " spleen still free. Eat, drink or chew, then run autoslime again.");
+	return false;
+}
+
 void sl_run(int maxTurns)
 {
 	int start = my_turncount();
 	int stuck = 0;
 	while(maxTurns < 0 || my_turncount() - start < maxTurns)
 	{
-		if(my_adventures() == 0)
+		if(my_adventures() == 0 && !sl_refuel())
 		{
-			sl_info("Out of adventures.");
 			break;
 		}
 		int before = my_turncount();
