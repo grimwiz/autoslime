@@ -8,11 +8,11 @@ since r29000;
 //      before every fight and wipes the slime off when it would take more than 80% of your HP, and once more
 //      at the end of the run so it doesn't follow you into other fights.
 //   2. Slime resistance: wears the gear with the most of it (and the HP to take the hits) for each fight.
-//   3. Engulfed!: tickles the uvula (once a player per instance; it lets one rusty item become slime-covered)
-//      and never squeezes the gall bladder (that raises the tube's ML for everyone). After your own tickle it
-//      keeps one rusty item on in the tube. Fighting in it doesn't convert it (2026-10-30: 12 fights after the
-//      tickle, still rusty); the conversion seems to come at a later Engulfed!, so it stays on until one. The clan
-//      etiquette is to use only your own tickle, so it never wears rusty gear before yours.
+//   3. Engulfed!: tickles the uvula (once a player per instance; KoLmafia labels it "+1 rusty -> slime-covered
+//      item conversion") and never squeezes the gall bladder (that raises the tube's ML for everyone). Until your
+//      tickle this instance it keeps one rusty item on, so it's worn when you tickle: "use your own tickle" is the
+//      clan etiquette. 2026-10-30: the tickle without it worn, then 40 fights and two more Engulfed!s with it on,
+//      didn't convert it, so the conversion looks like it happens at the tickle itself.
 //   4. Mother Slime: never fights her. When she's up it says so once in /slimetube and stops.
 //
 // Usage (KoLmafia command line):
@@ -270,18 +270,6 @@ item sl_rustyToConvert()
 	return $item[none];
 }
 
-// your tickle is in this instance's log and hasn't been used yet. autoslime_convertedAt holds the clan's kill
-// count when your last conversion happened; a lower count now means a new instance.
-boolean sl_tickleWaiting(sl_log log)
-{
-	if(!log.myTickle)
-	{
-		return false;
-	}
-	string at = get_property("autoslime_convertedAt");
-	return at == "" || log.kills < at.to_int();
-}
-
 void sl_wearGear(item rusty)
 {
 	string spec = sl_setting("maximize", "100 slime resistance, hp, 0.3 mainstat");
@@ -346,15 +334,11 @@ void sl_status()
 	}
 	else if(!log.myTickle)
 	{
-		sl_info("Next to convert: " + rusty + ". Waiting for your own Engulfed! tickle this instance.");
-	}
-	else if(sl_tickleWaiting(log))
-	{
-		sl_info("Your tickle is waiting: autoslime keeps " + rusty + " on in the tube until an Engulfed! slimes it.");
+		sl_info("Next to convert: " + rusty + ". autoslime keeps it on until your Engulfed! tickle this instance.");
 	}
 	else
 	{
-		sl_info("You've used your tickle this instance. Next instance: " + rusty + ".");
+		sl_info("You've tickled this instance. Next instance autoslime wears " + rusty + " for your tickle.");
 	}
 }
 
@@ -397,34 +381,6 @@ void sl_outOfAdventures()
 	}
 }
 
-// Engulfed! (choice 337), handled here rather than by KoLmafia so its options and result get logged: wearing a
-// rusty item through two Engulfed!s after a tickle didn't convert it (2026-10-30), so how the conversion works is
-// still unknown. Takes an option that mentions rusty or slime-covered gear if the game offers one, otherwise 1
-// (tickle; 2 squeezes the gall bladder, which raises the ML for everyone). The page is saved to
-// data/autoslime_engulfed.html.
-void sl_engulfed()
-{
-	string[int] options = available_choice_options();
-	int pick = 1;
-	foreach n, text in options
-	{
-		sl_info("Engulfed! option " + n + ": " + text);
-		if(n != 1 && n != 2 && (text.to_lower_case().contains_text("rusty") || text.to_lower_case().contains_text("slime-covered")))
-		{
-			pick = n;
-		}
-	}
-	string page = run_choice(pick);
-	buffer_to_file(page.to_buffer(), "autoslime_engulfed.html");
-	string words = create_matcher("\\s+", create_matcher("<[^>]*>", page).replace_all(" ")).replace_all(" ");
-	int at = words.index_of("Engulfed");
-	if(at >= 0)
-	{
-		words = words.substring(at);
-	}
-	sl_info("Engulfed!: took option " + pick + ". The game said: " + (length(words) > 500 ? words.substring(0, 500) + "..." : words));
-}
-
 boolean sl_turn()
 {
 	int stage = sl_stage();
@@ -445,7 +401,7 @@ boolean sl_turn()
 	}
 	sl_slimeBuffs();
 	sl_log log = sl_readLog();
-	item rusty = sl_tickleWaiting(log) ? sl_rustyToConvert() : $item[none];
+	item rusty = log.myTickle ? $item[none] : sl_rustyToConvert();	//on for your tickle, off after it
 	item slimed = rusty == $item[none] ? $item[none] : sl_slimeVersions()[rusty];
 	int before = slimed == $item[none] ? 0 : sl_owned(slimed);
 	sl_wearGear(rusty);
@@ -481,11 +437,7 @@ boolean sl_turn()
 
 	int turnsBefore = my_turncount();
 	boolean ok = adv1($location[The Slime Tube], -1, "");
-	boolean engulfed = handling_choice() && last_choice() == 337;
-	if(engulfed)
-	{
-		sl_engulfed();
-	}
+	boolean engulfed = get_property("lastEncounter") == "Engulfed!";
 	if(have_effect($effect[Beaten Up]) > 0)
 	{
 		sl_warn("Beaten up in the tube. Stopping.");
@@ -498,8 +450,11 @@ boolean sl_turn()
 	}
 	if(slimed != $item[none] && sl_owned(slimed) > before)
 	{
-		set_property("autoslime_convertedAt", sl_readLog().kills.to_string());
 		sl_info("Your " + rusty + " came out as a " + slimed + ".");
+	}
+	else if(engulfed)
+	{
+		sl_info("Engulfed!: tickled the uvula" + (rusty == $item[none] ? "." : " wearing " + rusty + ", but it's still rusty."));
 	}
 	return true;
 }
@@ -556,7 +511,7 @@ void main(string... args)
 	try
 	{
 		sl_overrideProperty("choiceAdventure326", "0");	//Mother Slime: stop, never fight her
-		sl_overrideProperty("choiceAdventure337", "0");	//Engulfed!: sl_engulfed() handles and logs it; never squeezes
+		sl_overrideProperty("choiceAdventure337", "1");	//Engulfed!: tickle the uvula, never squeeze
 		sl_run(turns);
 		//it hits in every fight, anywhere, and grows as it runs down: wipe it if you've turns left to fight with today.
 		//With none left it stays for the next autoslime, which carries on the cycle and wipes only when it must.
