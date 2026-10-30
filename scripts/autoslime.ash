@@ -254,15 +254,16 @@ item[int] sl_rustyOrder()
 	return order;
 }
 
-// the rusty item to wear in for a slime-covered one: you have it, can wear both, and don't own the result yet
+// the rusty item to wear in for a slime-covered one: you have it, can wear it now, and don't own the result yet.
+// Whether you can wear the result doesn't matter: it's kept, and the stats come (base 200 for most of them, which
+// a new ascension won't have).
 item sl_rustyToConvert()
 {
 	item[item] versions = sl_slimeVersions();
 	foreach i, rusty in sl_rustyOrder()
 	{
 		item slimed = versions[rusty];
-		if(item_amount(rusty) + closet_amount(rusty) + equipped_amount(rusty) > 0 && can_equip(rusty)
-			&& can_equip(slimed) && sl_owned(slimed) == 0)
+		if(item_amount(rusty) + closet_amount(rusty) + equipped_amount(rusty) > 0 && can_equip(rusty) && sl_owned(slimed) == 0)
 		{
 			return rusty;
 		}
