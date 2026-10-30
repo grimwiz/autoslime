@@ -289,6 +289,52 @@ void sl_wearGear(item rusty)
 	maximize(spec, false);
 }
 
+// Free +ML from buff skills you know (the maximizer finds them; potions and gear are left out), cast while you're
+// under autoslime_maxML. Accordion Thief songs only when one song slot stays free for The Ode to Booze, which
+// autosea diet wants when it drinks.
+void sl_mlBuffs()
+{
+	int cap = sl_setting("maxML", "200").to_int();
+	if(numeric_modifier("Monster Level") >= cap)
+	{
+		return;
+	}
+	int songLimit = (boolean_modifier("Four Songs") ? 4 : 3) + numeric_modifier("Additional Song").to_int();
+	foreach i, boost in maximize("ml " + cap + " max", 0, 0, true, false)
+	{
+		skill sk = boost.skill;
+		if(sk == $skill[none] || boost.score <= 0 || !have_skill(sk) || numeric_modifier("Monster Level") >= cap)
+		{
+			continue;
+		}
+		if(sk.song)
+		{
+			int songs = 0;
+			foreach eff in my_effects()
+			{
+				if(eff.to_skill().song)
+				{
+					songs += 1;
+				}
+			}
+			int keep = have_skill($skill[The Ode to Booze]) && have_effect($effect[Ode to Booze]) == 0 ? 1 : 0;
+			if(songs + keep >= songLimit)
+			{
+				continue;
+			}
+		}
+		if(my_mp() < mp_cost(sk))
+		{
+			restore_mp(mp_cost(sk));
+		}
+		if(my_mp() >= mp_cost(sk))
+		{
+			use_skill(1, sk);
+		}
+	}
+}
+
+
 // ---------------------------------------------------------------- status
 
 void sl_status()
@@ -411,6 +457,7 @@ boolean sl_turn()
 	item slimed = rusty == $item[none] ? $item[none] : sl_slimeVersions()[rusty];
 	int before = slimed == $item[none] ? 0 : sl_owned(slimed);
 	sl_wearGear(rusty);
+	sl_mlBuffs();
 	if(rusty != $item[none] && equipped_amount(rusty) == 0)
 	{
 		sl_warn("Couldn't put on " + rusty + "; fighting without it.");
