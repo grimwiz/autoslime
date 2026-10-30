@@ -14,19 +14,23 @@ Install with `git checkout https://github.com/grimwiz/autoslime.git`.
 
 ## Coated in Slime
 
-The tube's debuff hits you at the start of **every** fight while you have it, in the tube or anywhere else,
-and the hit grows each turn. Two runs with the same character:
+The tube's debuff hits you at the start of **every** fight while you have it, in the tube or anywhere else, for a
+share of your maximum HP that grows as its turns run down. Slime resistance takes 10% off per point (to 30%,
+then less per point):
 
-| fight after the first | 1 | 2 | 3 | 4 | 5 | 6 |
-|---|---|---|---|---|---|---|
-| no slime resistance | 61 | 184 | 402 | 738 (beaten up) | | |
-| +1 slime resistance | 12 | 85 | 254 | 557 | 824 | 1,354 |
+| turns left | 10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| hit, % of max HP | 1 | 7 | 20 | 44 | 81 | 132 | 202 | 290 | 400 | 533 |
 
-It can't be shrugged off. It wears off as its turns run out, so spend those turns without fighting
-(resting, noncombats), or soak in a Clan VIP Lounge hot tub if you have one.
+So healing between fights can't help once it's past about 6 turns left. It can't be shrugged off either, but a
+chamois from The Bucket by the tube wipes it off (`clan_slimetube.php?action=chamois`).
 
-autoslime reads the hits so far from your session log, guesses the next one from how they've been growing, and
-stops before the next could take more than 80% of your maximum HP (`set autoslime_hitShare = 0.8`).
+Before every fight autoslime works out the next hit and, if it would take more than 80% of your max HP
+(`set autoslime_hitShare = 0.8`), wipes the slime off first. The next tube fight starts it again from the top. At
+the end of a run it wipes it off once more, so it doesn't follow you into other fights
+(`set autoslime_wipeAtEnd = false` to keep it).
+
+The table is from twistedmage's relay_slime.ash and matches the hits seen on 2026-10-30.
 
 ## What it does
 

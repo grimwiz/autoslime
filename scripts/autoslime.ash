@@ -2,10 +2,11 @@ script "autoslime.ash";
 since r29000;
 
 // autoslime: spends turns in your clan's Slime Tube the way a good clanmate would.
-//   1. Coated in Slime: the tube's debuff hits you at the start of every fight, in the tube or anywhere else, and
-//      the hit grows each turn (about 61, 184, 402, 738 with no slime resistance). autoslime reads the hits so
-//      far from your session log, guesses the next one, and stops before it could beat you up. Shrugging can't
-//      remove the debuff; it wears off over turns spent without fighting (or in a Clan VIP Lounge hot tub).
+//   1. Coated in Slime: the tube's debuff hits you at the start of every fight, in the tube or anywhere else, for
+//      a share of your max HP that grows as its turns run down (1% with 10 left, 81% with 6, 290% with 3).
+//      Shrugging can't remove it; a chamois from The Bucket by the tube can. autoslime works out the next hit
+//      before every fight and wipes the slime off when it would take more than 80% of your HP, and once more
+//      at the end of the run so it doesn't follow you into other fights.
 //   2. Slime resistance: wears the gear with the most of it (and the HP to take the hits) for each fight.
 //   3. Engulfed!: tickles the uvula (once a player per instance; it lets one rusty item become slime-covered)
 //      and never squeezes the gall bladder (that raises the tube's ML for everyone). After your own tickle it
@@ -135,73 +136,58 @@ sl_log sl_readLog()
 }
 
 // ---------------------------------------------------------------- Coated in Slime
+// The hit at the start of each fight is a share of your maximum HP set by the debuff's turns left (it grows as
+// they run down), less your slime resistance. The table is from relay_slime.ash (twistedmage/assorted-kol-scripts)
+// and matches 2026-10-30's hits: 12, 85, 254, 557 at 10, 9, 8, 7 turns left on about 1,270 max HP and +1 resistance.
 
-// The start-of-fight slime hits since you last picked up Coated in Slime, read from today's and yesterday's
-// session logs: the first "Round 1: You lose N hit points" line of each fight. The debuff hits in every fight,
-// not only in the tube (2026-10-30: 824, 1,354, 3,133 and 2,774 in the sea right after 12, 85, 254, 557 in the tube).
-int[int] sl_hits()
+float sl_slimeShare(int turnsLeft)
 {
-	int[int] hits;
+	float[int] share;
+	share[0] = 0.0;
+	share[1] = 5.3333490;
+	share[2] = 4.0014678;
+	share[3] = 2.9021937;
+	share[4] = 2.0164264;
+	share[5] = 1.3243979;
+	share[6] = 0.8055476;
+	share[7] = 0.4383466;
+	share[8] = 0.2000367;
+	share[9] = 0.0662078;
+	share[10] = 0.0100000;
+	return share[max(0, min(10, turnsLeft))];
+}
+
+// the slime hit at the start of your next fight
+int sl_nextHit()
+{
+	float resisted = (100.0 - elemental_resistance($element[slime])) / 100.0;
+	return ceil(my_maxhp() * sl_slimeShare(have_effect($effect[Coated in Slime])) * resisted);
+}
+
+boolean sl_tooMuch(int hit)
+{
+	return hit >= my_maxhp() * sl_setting("hitShare", "0.8").to_float();
+}
+
+// The Bucket by the tube: a chamois wipes the debuff off (KoLmafia can't shrug it). The bucket holds a couple of
+// hundred for the whole clan.
+boolean sl_chamois()
+{
 	if(have_effect($effect[Coated in Slime]) == 0)
 	{
-		return hits;	//it's worn off: the next fight starts the count again
+		return true;
 	}
-	string[int] logs = session_logs(2);
-	string text = logs[1] + "\n" + logs[0];
-	int start = text.last_index_of("You acquire an effect: Coated in Slime");
-	if(start < 0)
+	int turnsBefore = my_turncount();
+	string page = visit_url("clan_slimetube.php?action=chamois");
+	matcher left = create_matcher("There (?:are|is) ([\\d,]+) chamoi", page);
+	if(have_effect($effect[Coated in Slime]) > 0)
 	{
-		return hits;
+		sl_warn("The chamois didn't wipe off the slime.");
+		return false;
 	}
-	text = text.substring(start);
-	matcher adv = create_matcher("\\n\\[\\d+\\] ([^\\n]+)", text);
-	int[int] starts;
-	string[int] places;
-	while(adv.find())
-	{
-		starts[count(starts)] = adv.start();
-		places[count(places)] = adv.group(1);
-	}
-	//every fight counts, wherever it is: the slime hits first, before the monster's own attacks in round 1
-	foreach i, pos in starts
-	{
-		int stop = (starts contains (i + 1)) ? starts[i + 1] : length(text);
-		string fight = text.substring(pos, stop);
-		int round2 = fight.index_of("Round 2:");
-		matcher hit = create_matcher("Round 1: You lose ([\\d,]+) hit points?", fight);
-		if(hit.find() && (round2 < 0 || hit.start() < round2))
-		{
-			hits[count(hits)] = hit.group(1).to_int();
-		}
-	}
-	return hits;
-}
-
-// The next hit, from how the last ones grew: each roughly doubles, a little less each time.
-int sl_nextHit(int[int] hits)
-{
-	int n = count(hits);
-	if(n == 0)
-	{
-		return 0;
-	}
-	int last = hits[n - 1];
-	if(n == 1 || hits[n - 2] <= 0)
-	{
-		return last * 3 + 50;
-	}
-	float ratio = max(1.7, (last.to_float() / hits[n - 2]) * 0.9);
-	return ceil(last * ratio);
-}
-
-string sl_hitList(int[int] hits)
-{
-	string s = "";
-	foreach i, h in hits
-	{
-		s += (s == "" ? "" : ", ") + h;
-	}
-	return s == "" ? "none yet" : s;
+	sl_info("Wiped off the slime with a chamois" + (left.find() ? " (" + left.group(1) + " left in the bucket)" : "")
+		+ (my_turncount() > turnsBefore ? "; it took a turn." : "."));
+	return true;
 }
 
 // ---------------------------------------------------------------- slime gear and rusty items
@@ -286,7 +272,6 @@ void sl_status()
 	sl_log log = sl_readLog();
 	sl_info("This instance: the clan has defeated " + log.kills + " slimes (you " + log.myKills + "). Tickles " + log.tickles
 		+ ", squeezes " + log.squeezes + (log.motherDead ? ". Mother Slime is dead." : "."));
-	int[int] hits = sl_hits();
 	int coated = have_effect($effect[Coated in Slime]);
 	if(coated == 0)
 	{
@@ -294,12 +279,11 @@ void sl_status()
 	}
 	else
 	{
-		int next = sl_nextHit(hits);
-		sl_info("Coated in Slime: " + coated + " turns. Slime hits so far: " + sl_hitList(hits) + ". Next one about " + next
-			+ " against your " + my_maxhp() + " max HP" + (next >= my_maxhp() * sl_setting("hitShare", "0.8").to_float()
-				? ": too much, so autoslime would wait for it to wear off." : "."));
+		int next = sl_nextHit();
+		sl_info("Coated in Slime: " + coated + " turns left. Your next fight anywhere starts with a hit of about " + next
+			+ " against your " + my_maxhp() + " max HP" + (sl_tooMuch(next) ? ": too much, so autoslime wipes it off with a chamois first." : "."));
 	}
-	sl_info("Slime resistance worn now: " + numeric_modifier("Slime Resistance").to_int() + ".");
+	sl_info("Slime resistance worn now: " + numeric_modifier("Slime Resistance").to_int() + " (" + elemental_resistance($element[slime]).to_int() + "% off each hit).");
 	string[int] gear;
 	foreach it in $items[chamoisole, crown-shaped beanie, poodle skirt, hopping socks, letterman's jacket,
 		slime-covered compass, slime-covered greaves, slime-covered helmet, slime-covered lantern, slime-covered necklace]
@@ -354,16 +338,6 @@ boolean sl_turn()
 		sl_info("Mother Slime is waiting. autoslime doesn't fight her; that's for the clan to arrange.");
 		return false;
 	}
-	int[int] hits = sl_hits();
-	int next = sl_nextHit(hits);
-	if(next >= my_maxhp() * sl_setting("hitShare", "0.8").to_float())
-	{
-		sl_info("Coated in Slime would hit for about " + next + " next fight (hits so far: " + sl_hitList(hits) + "), against your "
-			+ my_maxhp() + " max HP. Stopping. It hits in every fight, anywhere, so spend its last "
-			+ have_effect($effect[Coated in Slime]) + " turns without fighting (rest, or noncombats).");
-		return false;
-	}
-
 	sl_log log = sl_readLog();
 	item rusty = sl_tickleWaiting(log) ? sl_rustyToConvert() : $item[none];
 	item slimed = rusty == $item[none] ? $item[none] : sl_slimeVersions()[rusty];
@@ -373,11 +347,15 @@ boolean sl_turn()
 	{
 		sl_warn("Couldn't put on " + rusty + "; fighting without it.");
 	}
-	next = sl_nextHit(hits);	//max HP may have changed with the gear
-	if(next >= my_maxhp() * sl_setting("hitShare", "0.8").to_float())
+	int next = sl_nextHit();	//with the gear on: slime resistance and max HP both count
+	if(sl_tooMuch(next))
 	{
-		sl_info("With the slime gear on, the next hit (about " + next + ") is still too much for your " + my_maxhp() + " max HP. Stopping.");
-		return false;
+		if(!sl_chamois())
+		{
+			sl_info("Coated in Slime would hit for about " + next + " against your " + my_maxhp() + " max HP, and it couldn't be wiped off. Stopping.");
+			return false;
+		}
+		next = sl_nextHit();
 	}
 	restore_hp(my_maxhp());
 	if(my_hp() <= next + 50 || have_effect($effect[Beaten Up]) > 0)
@@ -460,6 +438,10 @@ void main(string... args)
 		sl_overrideProperty("choiceAdventure326", "0");	//Mother Slime: stop, never fight her
 		sl_overrideProperty("choiceAdventure337", "1");	//Engulfed!: tickle the uvula, never squeeze
 		sl_run(turns);
+		if(have_effect($effect[Coated in Slime]) > 0 && sl_setting("wipeAtEnd", "true").to_boolean())
+		{
+			sl_chamois();	//it hits in every fight, anywhere, and grows as it runs down
+		}
 	}
 	finally
 	{
