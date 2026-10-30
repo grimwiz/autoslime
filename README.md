@@ -39,7 +39,8 @@ The table is from twistedmage's relay_slime.ash and matches the hits seen on 202
 - Wears the gear with the most slime resistance, then HP (`set autoslime_maximize = ...` to change it).
 - Engulfed!: tickles the uvula (once a player per instance), never squeezes the gall bladder (that raises the
   tube's ML for everyone).
-- After your own tickle, wears one rusty item in the tube so it comes out slime-covered. It picks the first of
+- After your own tickle, keeps one rusty item on in the tube. Fighting in it doesn't convert it (12 fights after a
+  tickle, still rusty); the conversion seems to come at a later Engulfed!, so it stays on until one. It picks the first of
   rusty compass, rusty metal greaves, rusty diving helmet, rusty old lantern and rusty chain necklace that you
   have, can wear both before and after, and don't already own slimed. It never wears rusty gear before your own
   tickle: using someone else's is bad manners.

@@ -10,8 +10,9 @@ since r29000;
 //   2. Slime resistance: wears the gear with the most of it (and the HP to take the hits) for each fight.
 //   3. Engulfed!: tickles the uvula (once a player per instance; it lets one rusty item become slime-covered)
 //      and never squeezes the gall bladder (that raises the tube's ML for everyone). After your own tickle it
-//      wears one rusty item into the tube so it comes out slime-covered: the clan etiquette is to use only your
-//      own tickle, so it never wears rusty gear before yours.
+//      keeps one rusty item on in the tube. Fighting in it doesn't convert it (2026-10-30: 12 fights after the
+//      tickle, still rusty); the conversion seems to come at a later Engulfed!, so it stays on until one. The clan
+//      etiquette is to use only your own tickle, so it never wears rusty gear before yours.
 //   4. Mother Slime: never fights her. When she's up it says so once in /slimetube and stops.
 //
 // Usage (KoLmafia command line):
@@ -349,7 +350,7 @@ void sl_status()
 	}
 	else if(sl_tickleWaiting(log))
 	{
-		sl_info("Your tickle is waiting: autoslime wears " + rusty + " in the tube to make it slime-covered.");
+		sl_info("Your tickle is waiting: autoslime keeps " + rusty + " on in the tube until an Engulfed! slimes it.");
 	}
 	else
 	{
