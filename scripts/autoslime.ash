@@ -360,6 +360,43 @@ void sl_status()
 
 // ---------------------------------------------------------------- adventuring
 
+// The tube's own food and drink are mediocre (2-3 adventures each), so they're only for their buffs: one slimy
+// sweetbreads for Grimace and one slimy fermented bile bladder for Bilious (+1 slime resistance and +25 ML each,
+// 20 turns), when that buff has run out and there are enough adventures left to use most of it. Better food and
+// drink fill the rest of the stomach and liver.
+void sl_slimeBuffs()
+{
+	if(my_adventures() < sl_setting("buffMinAdventures", "15").to_int())
+	{
+		return;
+	}
+	if(have_effect($effect[Grimace]) == 0 && item_amount($item[slimy sweetbreads]) > 0 && fullness_limit() > my_fullness())
+	{
+		eat(1, $item[slimy sweetbreads]);
+	}
+	if(have_effect($effect[Bilious]) == 0 && item_amount($item[slimy fermented bile bladder]) > 0 && inebriety_limit() > my_inebriety())
+	{
+		drink(1, $item[slimy fermented bile bladder]);
+	}
+}
+
+// out of adventures: say what room is left rather than calling it a day
+void sl_outOfAdventures()
+{
+	int full = fullness_limit() - my_fullness();
+	int drunk = inebriety_limit() - my_inebriety();
+	int spleen = spleen_limit() - my_spleen_use();
+	if(full + drunk + spleen > 0)
+	{
+		sl_info("Out of adventures, with " + full + " fullness, " + drunk + " drunkenness and " + spleen
+			+ " spleen still free. Fill those with good food and drink (not the slimy ones), then run autoslime again.");
+	}
+	else
+	{
+		sl_info("Out of adventures, and your stomach, liver and spleen are full.");
+	}
+}
+
 // Engulfed! (choice 337), handled here rather than by KoLmafia so its options and result get logged: wearing a
 // rusty item through two Engulfed!s after a tickle didn't convert it (2026-10-30), so how the conversion works is
 // still unknown. Takes an option that mentions rusty or slime-covered gear if the game offers one, otherwise 1
@@ -406,6 +443,7 @@ boolean sl_turn()
 		sl_info("Mother Slime is waiting. autoslime doesn't fight her; that's for the clan to arrange.");
 		return false;
 	}
+	sl_slimeBuffs();
 	sl_log log = sl_readLog();
 	item rusty = sl_tickleWaiting(log) ? sl_rustyToConvert() : $item[none];
 	item slimed = rusty == $item[none] ? $item[none] : sl_slimeVersions()[rusty];
@@ -466,45 +504,15 @@ boolean sl_turn()
 	return true;
 }
 
-// Out of adventures: the tube's own food and drink first (slimy sweetbreads and bile bladders: 2-3 adventures each,
-// and +1 slime resistance), then say what room is left rather than calling it a day. Never overdrinks.
-boolean sl_refuel()
-{
-	while(my_adventures() == 0 && fullness_limit() > my_fullness() && item_amount($item[slimy sweetbreads]) > 0)
-	{
-		int before = my_fullness();
-		eat(1, $item[slimy sweetbreads]);
-		if(my_fullness() == before)
-		{
-			break;
-		}
-	}
-	while(my_adventures() == 0 && inebriety_limit() > my_inebriety() && item_amount($item[slimy fermented bile bladder]) > 0)
-	{
-		int before = my_inebriety();
-		drink(1, $item[slimy fermented bile bladder]);
-		if(my_inebriety() == before)
-		{
-			break;
-		}
-	}
-	if(my_adventures() > 0)
-	{
-		return true;
-	}
-	sl_info("Out of adventures, with " + (fullness_limit() - my_fullness()) + " fullness, " + (inebriety_limit() - my_inebriety())
-		+ " drunkenness and " + (spleen_limit() - my_spleen_use()) + " spleen still free. Eat, drink or chew, then run autoslime again.");
-	return false;
-}
-
 void sl_run(int maxTurns)
 {
 	int start = my_turncount();
 	int stuck = 0;
 	while(maxTurns < 0 || my_turncount() - start < maxTurns)
 	{
-		if(my_adventures() == 0 && !sl_refuel())
+		if(my_adventures() == 0)
 		{
+			sl_outOfAdventures();
 			break;
 		}
 		int before = my_turncount();

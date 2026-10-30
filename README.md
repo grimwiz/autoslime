@@ -37,6 +37,10 @@ The table is from twistedmage's relay_slime.ash and matches the hits seen on 202
 ## What it does
 
 - Wears the gear with the most slime resistance, then HP (`set autoslime_maximize = ...` to change it).
+- Keeps Grimace and Bilious up (+1 slime resistance, +25 ML, 20 turns each) with one slimy sweetbreads and one slimy
+  fermented bile bladder when they run out, if you have 15+ adventures left (`set autoslime_buffMinAdventures = 15`).
+  They're mediocre food (2-3 adventures), so it never eats them to fill up: when you're out of adventures it says
+  how much stomach, liver and spleen is left for better food and drink.
 - Engulfed!: tickles the uvula (once a player per instance), never squeezes the gall bladder (that raises the
   tube's ML for everyone).
 - After your own tickle, keeps one rusty item on in the tube. Fighting in it doesn't convert it (12 fights after a
