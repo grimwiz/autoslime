@@ -169,23 +169,37 @@ boolean sl_tooMuch(int hit)
 	return hit >= my_maxhp() * sl_setting("hitShare", "0.8").to_float();
 }
 
-// The Bucket by the tube: a chamois wipes the debuff off (KoLmafia can't shrug it). The bucket holds a couple of
-// hundred for the whole clan.
+// The Bucket by the tube: a chamois wipes the debuff off (KoLmafia can't shrug it), free. It's shared by the clan,
+// so autoslime leaves the last autoslime_bucketReserve (default 200) for others; the count left is shown after each
+// wipe and remembered for the day in _autoslime_bucketLeft. On 2026-10-30 it went 1,717 -> 1,721 across 5 kills and 1 wipe, so
+// it looks like slime kills put chamois back.
 boolean sl_chamois()
 {
 	if(have_effect($effect[Coated in Slime]) == 0)
 	{
 		return true;
 	}
+	string known = get_property("_autoslime_bucketLeft");
+	int reserve = sl_setting("bucketReserve", "200").to_int();
+	if(known != "" && known.to_int() <= reserve)
+	{
+		sl_warn("The bucket had only " + known + " chamois last time; leaving them for the clan (autoslime_bucketReserve = " + reserve + ").");
+		return false;
+	}
 	int turnsBefore = my_turncount();
 	string page = visit_url("clan_slimetube.php?action=chamois");
 	matcher left = create_matcher("There (?:are|is) ([\\d,]+) chamoi", page);
+	boolean counted = left.find();
+	if(counted)
+	{
+		set_property("_autoslime_bucketLeft", left.group(1).to_int().to_string());
+	}
 	if(have_effect($effect[Coated in Slime]) > 0)
 	{
 		sl_warn("The chamois didn't wipe off the slime.");
 		return false;
 	}
-	sl_info("Wiped off the slime with a chamois" + (left.find() ? " (" + left.group(1) + " left in the bucket)" : "")
+	sl_info("Wiped off the slime with a chamois" + (counted ? " (" + left.group(1) + " left in the bucket)" : "")
 		+ (my_turncount() > turnsBefore ? "; it took a turn." : "."));
 	return true;
 }

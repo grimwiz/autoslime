@@ -28,7 +28,9 @@ chamois from The Bucket by the tube wipes it off (`clan_slimetube.php?action=cha
 Before every fight autoslime works out the next hit and, if it would take more than 80% of your max HP
 (`set autoslime_hitShare = 0.8`), wipes the slime off first. The next tube fight starts it again from the top. At
 the end of a run it wipes it off once more, so it doesn't follow you into other fights
-(`set autoslime_wipeAtEnd = false` to keep it).
+(`set autoslime_wipeAtEnd = false` to keep it). The bucket is shared, so autoslime never takes the last 200
+(`set autoslime_bucketReserve = 200`); on 2026-10-30 it went from 1,717 to 1,721 across 5 slime kills and 1 wipe,
+so kills seem to put chamois back.
 
 The table is from twistedmage's relay_slime.ash and matches the hits seen on 2026-10-30.
 
