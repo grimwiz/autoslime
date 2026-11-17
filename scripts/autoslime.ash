@@ -408,6 +408,10 @@ void sl_status()
 	{
 		sl_info("Next to convert: " + rusty + ". After your Engulfed! tickle this instance, autoslime wears it and lets a slime take it.");
 	}
+	else if(get_property("autoslime_converted").to_boolean())
+	{
+		sl_info("Your tickle this instance has converted an item. Next instance, after your tickle: " + rusty + ".");
+	}
 	else
 	{
 		sl_info("You've tickled this instance: autoslime wears " + rusty + " and seal-tooths each slime until it takes it.");
@@ -509,7 +513,13 @@ boolean sl_turn()
 	sl_log log = sl_readLog();
 	//the rusty item goes on only after your own tickle (another clanmate's is theirs to use), and stays on until a
 	//slime takes it or autoslime_convertFights fights pass without that (someone else may have used the tickle)
-	item rusty = log.myTickle && sl_convertFights < sl_setting("convertFights", "5").to_int() ? sl_rustyToConvert() : $item[none];
+	//one tickle converts one item: autoslime_converted is set when it's used, and cleared in a new instance (no tickle yet)
+	if(!log.myTickle)
+	{
+		set_property("autoslime_converted", "false");
+	}
+	item rusty = log.myTickle && !get_property("autoslime_converted").to_boolean()
+		&& sl_convertFights < sl_setting("convertFights", "5").to_int() ? sl_rustyToConvert() : $item[none];
 	if(rusty != $item[none] && item_amount($item[seal tooth]) == 0 && !retrieve_item(1, $item[seal tooth]))
 	{
 		sl_warn("No seal tooth (it keeps the slime attacking without killing it), so no conversion this run.");
@@ -582,8 +592,9 @@ boolean sl_turn()
 	}
 	if(slimed != $item[none] && sl_owned(slimed) > before)
 	{
-		sl_info("A slime took your " + rusty + " and gave it back as a " + slimed + ".");
-		sl_convertFights = 0;
+		sl_info("A slime took your " + rusty + " and gave it back as a " + slimed + ". That uses your tickle: the next "
+			+ "rusty item waits for your tickle in the next instance.");
+		set_property("autoslime_converted", "true");
 	}
 	else if(engulfed)
 	{
@@ -593,6 +604,7 @@ boolean sl_turn()
 	{
 		if(sl_owned(rusty) == 0 && equipped_amount(rusty) == 0)
 		{
+			set_property("autoslime_converted", "true");	//the tickle's conversion is spent either way
 			sl_warn("A slime took your " + rusty + " but no " + slimed + " came back (the fight wasn't won?). Stopping.");
 			return false;
 		}

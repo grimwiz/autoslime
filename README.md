@@ -57,7 +57,8 @@ The table is from twistedmage's relay_slime.ash and matches the hits seen on 202
   pulls it off of you", and defeating that slime gives the slime-covered item (losing or running away loses the
   item). Each slime attack has a chance of it, so after your tickle autoslime wears the rusty item and uses a seal
   tooth (1 damage, not used up) on each slime until one takes it, up to 15 rounds a fight, then lets your usual
-  combat kill it. If no slime takes it in 5 fights (someone else may have used the tickle) it fights on without it
+  combat kill it. One tickle converts one item, so the next rusty item waits for your tickle in the next
+  instance. If no slime takes it in 5 fights (someone else may have used the tickle) it fights on without it
   (`autoslime_convertRounds`, `autoslime_convertFights`). It picks the first of rusty compass, rusty metal greaves,
   rusty diving helmet, rusty old lantern and rusty chain necklace that you have and can wear, and don't already own
   slimed (whether you can wear the slimed one yet doesn't matter: it keeps). Earlier versions got this wrong: on
