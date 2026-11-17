@@ -274,10 +274,14 @@ item sl_rustyToConvert()
 // Slime resistance first; then +ML up to autoslime_maxML (default 200): each kill counts its monster level against
 // the tube's 400,000 and gives more stats, and the slimes still die in a hit or two. Max HP hardly matters: the
 // slime hits are a share of it. Each 100 ML takes a turn off Coated in Slime, so a few more chamois, but every kill
-// puts one back.
+// puts one back. Damage keeps it that way: without it, two rave whistles (+10 ML each, a Moxie ranged weapon) replaced
+// a Seal Clubber's legendary club, and Furious Wallop fell from about 370 damage to 100. "effective" keeps to a
+// weapon your class hits with (melee for Muscle, ranged for Moxie), and the damage term picks the strong one.
 void sl_wearGear(item rusty)
 {
-	string spec = sl_setting("maximize", "100 slime resistance, 5 ml " + sl_setting("maxML", "200") + " max, 0.3 mainstat, 0.1 hp");
+	string damage = my_primestat() == $stat[Mysticality] ? "1 spell damage" : "1 weapon damage, +effective";
+	string spec = sl_setting("maximize", "100 slime resistance, 5 ml " + sl_setting("maxML", "200") + " max, " + damage
+		+ ", 0.3 mainstat, 0.1 hp");
 	if(rusty != $item[none])
 	{
 		if(item_amount(rusty) == 0 && closet_amount(rusty) > 0)

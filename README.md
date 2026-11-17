@@ -37,7 +37,9 @@ The table is from twistedmage's relay_slime.ash and matches the hits seen on 202
 ## What it does
 
 - Wears the gear with the most slime resistance, then +ML up to +200 (`set autoslime_maxML = 200`): each kill counts
-  its monster level against the tube's total and gives more stats, and the slimes still die in a hit or two. It
+  its monster level against the tube's total and gives more stats, and the slimes still die in a hit or two: it also
+  weighs damage (weapon damage and an effective weapon for your class, or spell damage for Mysticality classes), so
+  +ML gear like rave whistles doesn't replace your weapon. It
   stops if the slimes could hit for more than about a sixth of your HP a round. Max HP hardly matters, since the
   slime hits are a share of it. (`set autoslime_maximize = ...` replaces the whole maximizer string.)
 - Casts your +ML buff skills (Ur-Kel's Aria of Annoyance and the like, whatever the maximizer finds) up to the same
