@@ -9,11 +9,15 @@ since r29000;
 //      at the end of the run so it doesn't follow you into other fights.
 //   2. Slime resistance: wears the gear with the most of it (and the HP to take the hits) for each fight.
 //   3. Engulfed!: tickles the uvula (once a player per instance; KoLmafia labels it "+1 rusty -> slime-covered
-//      item conversion") and never squeezes the gall bladder (that raises the tube's ML for everyone). Until your
-//      tickle this instance it keeps one rusty item on, so it's worn when you tickle: "use your own tickle" is the
-//      clan etiquette. 2026-10-30: the tickle without it worn, then 40 fights and two more Engulfed!s with it on,
-//      didn't convert it, so the conversion looks like it happens at the tickle itself.
-//   4. Mother Slime: never fights her. When she's up it says so once in /slimetube and stops.
+//      item conversion") and never squeezes the gall bladder (that raises the tube's ML for everyone).
+//   4. The conversion: a tickle lets one rusty item become slime-covered, for whoever in the clan wears one first,
+//      so the etiquette is to use only your own. It happens in a fight: a slime "blasts you with a massive loogie
+//      that sticks to your <item>, pulls it off of you", and when you defeat that slime you get the slime-covered
+//      one (lose or run away and the item is gone). Each slime attack has a chance, so after your tickle autoslime
+//      wears the rusty item and uses a seal tooth (1 damage, kept) on the slime until the loogie takes it, then
+//      kills it. 2026-10-30 and 2026-11-16 failed: the first killed every slime before it attacked, the second
+//      took the item off after the tickle.
+//   5. Mother Slime: never fights her. When she's up it says so once in /slimetube and stops.
 //
 // Usage (KoLmafia command line):
 //   autoslime          fight in the tube until the next slime hit would be too much
@@ -402,11 +406,11 @@ void sl_status()
 	}
 	else if(!log.myTickle)
 	{
-		sl_info("Next to convert: " + rusty + ". autoslime keeps it on until your Engulfed! tickle this instance.");
+		sl_info("Next to convert: " + rusty + ". After your Engulfed! tickle this instance, autoslime wears it and lets a slime take it.");
 	}
 	else
 	{
-		sl_info("You've tickled this instance. Next instance autoslime wears " + rusty + " for your tickle.");
+		sl_info("You've tickled this instance: autoslime wears " + rusty + " and seal-tooths each slime until it takes it.");
 	}
 }
 
@@ -446,6 +450,26 @@ void sl_slimeBuffs()
 	}
 }
 
+// the rusty item being converted this run, and how many fights it has had to be taken
+item sl_convertRusty = $item[none];
+int sl_convertFights = 0;
+
+// the combat filter while converting: a seal tooth (1 damage) each round, so the slime keeps attacking, until one
+// of its attacks takes the rusty item; then your usual combat (an empty answer) kills it, which gives the
+// slime-covered item. Also hands over to your combat when HP gets low or the fight drags on.
+string sl_convertFilter(int round, monster enemy, string text)
+{
+	if(sl_convertRusty == $item[none] || equipped_amount(sl_convertRusty) == 0 || text.contains_text("massive loogie"))
+	{
+		return "";
+	}
+	if(round >= sl_setting("convertRounds", "15").to_int() || my_hp() < my_maxhp() / 3 || item_amount($item[seal tooth]) == 0)
+	{
+		return "";
+	}
+	return have_skill($skill[Ambidextrous Funkslinging]) ? "item seal tooth, none" : "item seal tooth";
+}
+
 // out of adventures even after "autosea diet": say what room is left
 void sl_outOfAdventures()
 {
@@ -483,7 +507,15 @@ boolean sl_turn()
 	}
 	sl_slimeBuffs();
 	sl_log log = sl_readLog();
-	item rusty = log.myTickle ? $item[none] : sl_rustyToConvert();	//on for your tickle, off after it
+	//the rusty item goes on only after your own tickle (another clanmate's is theirs to use), and stays on until a
+	//slime takes it or autoslime_convertFights fights pass without that (someone else may have used the tickle)
+	item rusty = log.myTickle && sl_convertFights < sl_setting("convertFights", "5").to_int() ? sl_rustyToConvert() : $item[none];
+	if(rusty != $item[none] && item_amount($item[seal tooth]) == 0 && !retrieve_item(1, $item[seal tooth]))
+	{
+		sl_warn("No seal tooth (it keeps the slime attacking without killing it), so no conversion this run.");
+		sl_convertFights = 999;
+		rusty = $item[none];
+	}
 	item slimed = rusty == $item[none] ? $item[none] : sl_slimeVersions()[rusty];
 	int before = slimed == $item[none] ? 0 : sl_owned(slimed);
 	sl_wearGear(rusty);
@@ -534,7 +566,9 @@ boolean sl_turn()
 	}
 
 	int turnsBefore = my_turncount();
-	boolean ok = adv1($location[The Slime Tube], -1, "");
+	sl_convertRusty = equipped_amount(rusty) > 0 ? rusty : $item[none];
+	boolean ok = adv1($location[The Slime Tube], -1, sl_convertRusty == $item[none] ? "" : "sl_convertFilter");
+	sl_convertRusty = $item[none];
 	boolean engulfed = get_property("lastEncounter") == "Engulfed!";
 	if(have_effect($effect[Beaten Up]) > 0)
 	{
@@ -548,11 +582,26 @@ boolean sl_turn()
 	}
 	if(slimed != $item[none] && sl_owned(slimed) > before)
 	{
-		sl_info("Your " + rusty + " came out as a " + slimed + ".");
+		sl_info("A slime took your " + rusty + " and gave it back as a " + slimed + ".");
+		sl_convertFights = 0;
 	}
 	else if(engulfed)
 	{
-		sl_info("Engulfed!: tickled the uvula" + (rusty == $item[none] ? "." : " wearing " + rusty + ", but it's still rusty."));
+		sl_info("Engulfed!: tickled the uvula.");
+	}
+	else if(rusty != $item[none])
+	{
+		if(sl_owned(rusty) == 0 && equipped_amount(rusty) == 0)
+		{
+			sl_warn("A slime took your " + rusty + " but no " + slimed + " came back (the fight wasn't won?). Stopping.");
+			return false;
+		}
+		sl_convertFights += 1;
+		if(sl_convertFights >= sl_setting("convertFights", "5").to_int())
+		{
+			sl_warn("No slime took your " + rusty + " in " + sl_convertFights + " fights. Someone may have used this instance's "
+				+ "tickle; fighting on without it.");
+		}
 	}
 	return true;
 }
