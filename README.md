@@ -44,6 +44,7 @@ The table is from twistedmage's relay_slime.ash and matches the hits seen on 202
   cap. Songs only while a song slot stays free for The Ode to Booze.
 - Keeps Grimace and Bilious up (+1 slime resistance, +25 ML, 20 turns each) with one slimy sweetbreads and one slimy
   fermented bile bladder when they run out, if you have 15+ adventures left (`set autoslime_buffMinAdventures = 15`).
+  It drinks under The Ode to Booze when a song slot is free, and never stops to ask about Ode or Milk of Magnesium.
   They're mediocre food (2-3 adventures), so it never eats them to fill up: when you're out of adventures it says
   how much stomach, liver and spleen is left for better food and drink.
 - Engulfed!: tickles the uvula (once a player per instance), never squeezes the gall bladder (that raises the

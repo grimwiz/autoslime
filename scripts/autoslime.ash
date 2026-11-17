@@ -289,6 +289,25 @@ void sl_wearGear(item rusty)
 	maximize(spec, false);
 }
 
+// Accordion Thief songs you can hold at once, and how many you have now
+int sl_songLimit()
+{
+	return (boolean_modifier("Four Songs") ? 4 : 3) + numeric_modifier("Additional Song").to_int();
+}
+
+int sl_songs()
+{
+	int songs = 0;
+	foreach eff in my_effects()
+	{
+		if(eff.to_skill().song)
+		{
+			songs += 1;
+		}
+	}
+	return songs;
+}
+
 // Free +ML from buff skills you know (the maximizer finds them; potions and gear are left out), cast while you're
 // under autoslime_maxML. Accordion Thief songs only when one song slot stays free for The Ode to Booze, which
 // autosea diet wants when it drinks.
@@ -299,7 +318,7 @@ void sl_mlBuffs()
 	{
 		return;
 	}
-	int songLimit = (boolean_modifier("Four Songs") ? 4 : 3) + numeric_modifier("Additional Song").to_int();
+	int songLimit = sl_songLimit();
 	foreach i, boost in maximize("ml " + cap + " max", 0, 0, true, false)
 	{
 		skill sk = boost.skill;
@@ -309,14 +328,7 @@ void sl_mlBuffs()
 		}
 		if(sk.song)
 		{
-			int songs = 0;
-			foreach eff in my_effects()
-			{
-				if(eff.to_skill().song)
-				{
-					songs += 1;
-				}
-			}
+			int songs = sl_songs();
 			int keep = have_skill($skill[The Ode to Booze]) && have_effect($effect[Ode to Booze]) == 0 ? 1 : 0;
 			if(songs + keep >= songLimit)
 			{
@@ -406,13 +418,27 @@ void sl_slimeBuffs()
 	{
 		return;
 	}
+	//eatsilent and drinksilent: KoLmafia's "eat without Milk of Magnesium?" and "drink without Ode?" questions stop
+	//the script until someone answers them, and neither is worth it for one small slime food or drink
 	if(have_effect($effect[Grimace]) == 0 && item_amount($item[slimy sweetbreads]) > 0 && fullness_limit() > my_fullness())
 	{
-		eat(1, $item[slimy sweetbreads]);
+		eatsilent(1, $item[slimy sweetbreads]);
 	}
 	if(have_effect($effect[Bilious]) == 0 && item_amount($item[slimy fermented bile bladder]) > 0 && inebriety_limit() > my_inebriety())
 	{
-		drink(1, $item[slimy fermented bile bladder]);
+		//The Ode to Booze if a song slot is free (it's +1 adventure, and lasts for the diet's drinks later)
+		if(have_skill($skill[The Ode to Booze]) && have_effect($effect[Ode to Booze]) == 0 && sl_songs() < sl_songLimit())
+		{
+			if(my_mp() < mp_cost($skill[The Ode to Booze]))
+			{
+				restore_mp(mp_cost($skill[The Ode to Booze]));
+			}
+			if(my_mp() >= mp_cost($skill[The Ode to Booze]))
+			{
+				use_skill(1, $skill[The Ode to Booze]);
+			}
+		}
+		drinksilent(1, $item[slimy fermented bile bladder]);
 	}
 }
 
